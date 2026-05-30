@@ -14,14 +14,14 @@ This tool reads a local SQLite database of running track coordinates and renders
 
 ## Repository Structure
 
-\`\`\`text
+```text
 ├── 006-DA389-00.sqlite    # The track database (Must be provided by user)
 ├── app.js                 # Core application logic, geometry math, and UI handlers
 ├── index.html             # Main entry point
 ├── sql-wasm.js            # SQLite WebAssembly loader
 ├── sql-wasm.wasm          # SQLite WebAssembly binary
 └── lib/                   # Localized Leaflet libraries and marker assets
-\`\`\`
+```
 
 ## Usage Guide
 
