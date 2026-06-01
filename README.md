@@ -4,6 +4,10 @@ A lightweight, purely client-side web application designed to visualize, audit, 
 
 This tool reads a local SQLite database of running track coordinates and renders them on an interactive map. It is designed to rapidly audit database entries around the world.
 
+This SQLite database is located in `GARMIN\SQL` forlder on the watch.
+You should be able to get it from backup made with Garmin Express
+Please note that original file has name extension `.db` which should be changed to `.sqlite` for this app to work.
+
 ## Features
 
 * **Zero-Backend Architecture:** Uses `sql-wasm.js` (WebAssembly) to load and parse the SQLite database entirely in the browser's memory. No server required.
