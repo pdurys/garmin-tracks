@@ -426,12 +426,14 @@ function populateClusters() {
     
     // Create the circle marker for individual tracks inside clusters
     const m = L.circleMarker([t.lat, t.lon], { 
-      radius: 5, 
-      color: '#2a7', 
+      radius: 8,                    // Slightly larger visual core (or keep at 5)
+      weight: 12,                   // Invisible wide stroke expanding the click area
+      color: 'transparent',         // Makes the expanded stroke completely invisible
       fillColor: '#2a7', 
-      fillOpacity: 0.9 
-    });
-    
+      fillOpacity: 0.9,
+      interactive: true
+    });    
+
     // Bind the popup to the marker as before
     // m.bindPopup(buildPopupHtml(t));
     
