@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Track Viewer</title>
   
   <link rel="stylesheet" href="lib/leaflet.css" />
@@ -13,12 +14,12 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
+      height: 100dvh; /* Takes up 100% of the viewport height */
       overflow: hidden; /* Stops scrollbars from appearing */
     }
     #map {
       width: 100%;
-      height: 100vh; /* Takes up 100% of the viewport height */
+      height: 100dvh; /* Takes up 100% of the viewport height */
     }
     #dbfile {
       position: absolute;
@@ -26,37 +27,12 @@
       left: 50px;
       z-index: 1000; /* Pushes the upload button to sit on top of the map */
     }
-    /* Uniform width and positioning for both action buttons */
-    #back-btn, #layer-toggle-btn {
-      position: absolute;
-      right: 15px; /* Aligned to the right edge */
-      width: 160px; /* Forces both buttons to be exactly the same size */
-      height: 38px; /* Consistent height for both */
-      z-index: 1000;
-      background: white;
-      border: 2px solid rgba(0,0,0,0.2);
-      border-radius: 4px;
-      font-family: Arial, sans-serif;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 1px 5px rgba(0,0,0,0.4);
-      box-sizing: border-box;
-    }
-
-    /* SWAPPED: Satellite Toggle is now permanent at the top */
-    #layer-toggle-btn {
-      top: 15px; 
-    }
-
-    /* SWAPPED: Back button pops up directly below it */
-    #back-btn {
-      top: 60px; 
-      display: none; /* Stays hidden by default until a track is clicked */
-    }
-
-    /* Hover effect for both buttons */
-    #back-btn:hover, #layer-toggle-btn:hover {
-      background: #f4f4f4;
+    /* Mobile phone collision avoidance for Leaflet controls */
+    @media (max-width: 480px) {
+      .responsive-right-panel {
+        /* Pushes the right panel down below the left search bar */
+        margin-top: 55px !important; 
+      }
     }
   </style>
 
@@ -66,10 +42,6 @@
   <script src="app.js" defer></script>
 </head>
 <body>
-  
-  <button id="back-btn" onclick="goBackToPreviousView()">← Back to Overview</button>
-  <button id="layer-toggle-btn" onclick="toggleMapLayer()">🛰️ Satellite View</button>
-  
   <div id="map"></div>
 </body>
 </html>

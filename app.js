@@ -57,7 +57,9 @@ function formatDMS(deg) {
 function computeTrackLength(straightM, radiusM) {
   if (straightM == null) return null;
   if (radiusM == null) return 2 * straightM; 
-  return 2 * straightM + 2 * Math.PI * radiusM;
+  
+  const curbOffset = 0.3; // Standard IAAF functional track offset
+  return 2 * straightM + 2 * Math.PI * (radiusM + curbOffset);
 }
 
 // ==========================================
@@ -174,13 +176,18 @@ function initMap() {
       const autoBtn = L.DomUtil.create('button', '', container);
       autoBtn.id = 'autoplay-btn';
       autoBtn.innerHTML = '▶️ Auto-Play';
-      autoBtn.style.width = '80px';
-      autoBtn.style.height = '26px';
+      autoBtn.style.width = '85px';
+      autoBtn.style.height = '30px';
+      autoBtn.style.boxSizing = 'border-box'; // The magic fix
       autoBtn.style.cursor = 'pointer';
       autoBtn.style.border = '1px solid #ccc';
       autoBtn.style.borderRadius = '4px';
       autoBtn.style.backgroundColor = '#f4f4f4';
-      autoBtn.style.fontSize = '10px';
+      autoBtn.style.fontSize = '11px';
+
+      // Emulate CSS :hover
+      autoBtn.onmouseenter = () => autoBtn.style.backgroundColor = '#e0e0e0';
+      autoBtn.onmouseleave = () => autoBtn.style.backgroundColor = '#f4f4f4';
       
       autoBtn.onclick = window.toggleAutoPlay;
 
@@ -201,9 +208,10 @@ function initMap() {
       const input = L.DomUtil.create('input', '', container);
       input.type = 'number';
       input.placeholder = 'Track ID...';
-      input.style.width = '80px';
-      input.style.height = '26px';
-      input.style.padding = '0 4px';
+      input.style.width = '85px';
+      input.style.height = '30px';
+      input.style.boxSizing = 'border-box'; // The magic fix
+      input.style.padding = '0 6px';
       input.style.border = '1px solid #ccc';
       input.style.borderRadius = '4px';
       input.style.fontSize = '12px';
@@ -212,8 +220,9 @@ function initMap() {
       // Create search action button
       const button = L.DomUtil.create('button', '', container);
       button.innerHTML = '🔍';
-      button.style.width = '28px';
-      button.style.height = '26px';
+      button.style.width = '30px';
+      button.style.height = '30px';
+      button.style.boxSizing = 'border-box'; // The magic fix
       button.style.cursor = 'pointer';
       button.style.border = '1px solid #ccc';
       button.style.borderRadius = '4px';
@@ -221,6 +230,10 @@ function initMap() {
       button.style.display = 'flex';
       button.style.alignItems = 'center';
       button.style.justifyContent = 'center';
+
+      // Emulate CSS :hover
+      button.onmouseenter = () => button.style.backgroundColor = '#e0e0e0';
+      button.onmouseleave = () => button.style.backgroundColor = '#f4f4f4';
 
       L.DomEvent.disableClickPropagation(container);
       L.DomEvent.disableScrollPropagation(container);
@@ -239,6 +252,69 @@ function initMap() {
   });
 
   map.addControl(new SearchControl());
+
+  // =========================================================================
+  // DYNAMIC RIGHT SIDE CONTROLS (MIRRORS LEFT SIDE CONTAINER AESTHETICS)
+  // =========================================================================
+  const RightControls = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function() {
+      // Create the parent container wrapping both buttons
+      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control responsive-right-panel');
+      
+      // Match the Left side container styling exactly
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column'; // Stack vertically on the right
+      container.style.gap = '5px';
+      container.style.backgroundColor = '#ffffff';
+      container.style.padding = '5px';
+      container.style.borderRadius = '4px';
+      container.style.boxShadow = '0 1px 5px rgba(0,0,0,0.65)';
+      container.style.marginTop = '10px';
+      container.style.marginRight = '10px';
+      
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+
+      // Shared inline styling for both buttons to match the inner buttons on the left
+      const applyBtnStyles = (btn) => {
+        btn.style.width = '150px';
+        btn.style.height = '30px'; // Perfectly matches the 30px height of left elements
+        btn.style.boxSizing = 'border-box';
+        btn.style.cursor = 'pointer';
+        btn.style.border = '1px solid #ccc';
+        btn.style.borderRadius = '4px';
+        btn.style.backgroundColor = '#f4f4f4';
+        btn.style.fontFamily = 'Arial, sans-serif';
+        btn.style.fontWeight = 'bold';
+        btn.style.fontSize = '12px';
+        
+        // Emulate CSS :hover
+        btn.onmouseenter = () => btn.style.backgroundColor = '#e0e0e0';
+        btn.onmouseleave = () => btn.style.backgroundColor = '#f4f4f4';
+      };
+
+      // Create Satellite Toggle Button
+      const toggleBtn = L.DomUtil.create('button', '', container);
+      toggleBtn.id = 'layer-toggle-btn';
+      toggleBtn.innerHTML = '🛰️ Satellite View';
+      applyBtnStyles(toggleBtn);
+      toggleBtn.onclick = window.toggleMapLayer;
+
+      // Create Back Button
+      const backBtn = L.DomUtil.create('button', '', container);
+      backBtn.id = 'back-btn';
+      backBtn.innerHTML = '← Back to Overview';
+      applyBtnStyles(backBtn);
+      backBtn.style.display = 'none'; // Hidden by default
+      backBtn.onclick = window.goBackToPreviousView;
+
+      return container;
+    }
+  });
+
+  map.addControl(new RightControls());
+
   // Dismiss interactive cards and bounds when clicking the map background
   map.on('click', () => {
     if (typeof window.closeInteractiveTelemetryCard === 'function') {
@@ -260,12 +336,16 @@ async function initSqlJsAndBind() {
     console.log("⏱️ LOG [3]: Database parsed. Loading tracks into memory array...");
     await loadTracksFromDb();
     
-    if (!window.isAutomationRun) {
+    // Check if the user arrived via a deep link
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasUrlId = urlParams.has('id');
+    
+    if (!window.isAutomationRun && !hasUrlId) {
       console.log("⏱️ LOG [4a]: Normal session. Rendering all markers and fitting bounds.");
       renderByZoom();
       fitMapToTracks();
-    } else {
-      console.log("⏱️ LOG [4b]: 🤖 AUTOMATION DETECTED inside DB binder. Skipping global view changes!");
+    } else if (window.isAutomationRun) {
+      console.log("⏱️ LOG [4b]: 🤖 AUTOMATION DETECTED. Skipping global view changes!");
     }
   } catch (error) {
     console.error("Auto-load failed:", error);
@@ -438,6 +518,12 @@ function goBackToPreviousView() {
   
   // 4. Hide the back button again until the next deep dive
   document.getElementById('back-btn').style.display = 'none';
+  // ==========================================================
+  // DEEP LINKING: Clear the ID from the URL
+  // ==========================================================
+  const newUrl = new URL(window.location.href);
+  newUrl.searchParams.delete('id');
+  window.history.pushState({ path: newUrl.href }, '', newUrl.href);
 }
 
 function renderByZoom() {
@@ -483,7 +569,7 @@ function drawDynamicBoundsOnDemand(t) {
 
 function drawTrack(t) {
   const pts = buildOvalPoints(t.lat, t.lon, t.angle, t.straightM || 0, t.radiusM || 0, 20);
-  const poly = L.polyline(pts, { color: '#ff3333', weight: 2, opacity: 0.9 }).addTo(trackLayer);
+  const poly = L.polyline(pts, { color: '#ff3333', weight: 3, opacity: 0.9 }).addTo(trackLayer);
 
   poly.on('click', (e) => {
     L.DomEvent.stop(e); // Prevent map click event from firing and instantly closing the card
@@ -491,7 +577,7 @@ function drawTrack(t) {
     showInteractiveTelemetryCard(t);
   });
 
-  const m = L.circleMarker([t.lat, t.lon], { radius: 3, color: '#000' }).addTo(trackLayer);
+  const m = L.circleMarker([t.lat, t.lon], { radius: 5, color: '#000' }).addTo(trackLayer);
   m.on('click', (e) => {
     L.DomEvent.stop(e);
     drawDynamicBoundsOnDemand(t);
@@ -562,7 +648,7 @@ function showInteractiveTelemetryCard(t) {
     <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
     📍 Lat: ${t.lat.toFixed(6)}<br>
     📍 Lon: ${t.lon.toFixed(6)}<br>
-    📐 Angle: ${t.angle.toFixed(1)}°<br>
+    📐 Angle: ${t.angle.toFixed(2)}°<br>
     📏 Straight: ${t.straightM.toFixed(2)}m ${t.assumedStraight ? '<span style="color:#ff3333">(Assumed)</span>' : ''}<br>
     ⭕ Radius: ${t.radiusM.toFixed(2)}m ${t.assumedRadius ? '<span style="color:#ff3333">(Calculated)</span>' : ''}<br>
     🏃 Total Len: ${t.lengthM.toFixed(2)}m
@@ -665,11 +751,25 @@ window.addEventListener('load', async () => {
   console.log("⏱️ LOG [1]: Window load event triggered. Initializing Map...");
   initMap();
   
-  console.log("⏱️ LOG [2]: Fetching SQLite database array buffer...");
+  console.log("⏱️ LOG [2]: Fetching SQLite database...");
   await initSqlJsAndBind();
   
   window.mapIsFullyLoaded = true; 
   console.log("⏱️ LOG [5]: window.mapIsFullyLoaded set to TRUE.");
+
+  // ==========================================================
+  // DEEP LINKING: Check URL for ?id= parameter and execute jump
+  // ==========================================================
+  const urlParams = new URLSearchParams(window.location.search);
+  const trackIdFromUrl = urlParams.get('id');
+  
+  if (trackIdFromUrl && !isNaN(parseInt(trackIdFromUrl))) {
+    console.log(`🔗 URL deep link detected for ID: ${trackIdFromUrl}`);
+    // Small timeout ensures all Leaflet map tiles are ready before the camera moves
+    setTimeout(() => {
+      window.jumpToTrackById(parseInt(trackIdFromUrl));
+    }, 200);
+  }
 });
 
 // =========================================================================
@@ -764,6 +864,13 @@ window.jumpToTrackById = function(targetId) {
     showInteractiveTelemetryCard(trackObj);
 
     console.log(`🎯 Successfully located and navigated to Track ID: ${targetId}`);
+
+    // ==========================================================
+    // DEEP LINKING: Update browser URL silently
+    // ==========================================================
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('id', targetId);
+    window.history.pushState({ path: newUrl.href }, '', newUrl.href);
   } catch (error) {
     console.error("❌ Search Engine Execution Error:", error);
     alert(`An error occurred while loading the track: ${error.message}`);
@@ -894,6 +1001,18 @@ window.loadSingleTrackForScreenshot = function(id, rawLat, rawLon, rawStraight, 
 let editModeActive = false;
 let editMarker = null;
 
+window.adjustEditSlider = function(sliderId, delta) {
+  const slider = document.getElementById(sliderId);
+  if (slider) {
+    // Read the current value, add the delta, and round to 2 decimals to prevent JS floating-point bugs
+    let newVal = parseFloat(slider.value) + delta;
+    slider.value = newVal.toFixed(2);
+    
+    // Dispatch an 'input' event so redrawEditedTrack() fires automatically
+    slider.dispatchEvent(new Event('input'));
+  }
+};
+
 window.activateEditMode = function() {
   if (editModeActive || !window.currentViewedTrack) return;
   editModeActive = true;
@@ -902,14 +1021,22 @@ window.activateEditMode = function() {
   if (isAutoPlaying) window.toggleAutoPlay();
 
   const t = window.currentViewedTrack;
+
+  // Dynamic initial length calculation with fallback if radius/straight is missing
+  const curbOffset = 0.3;
+  let initialTargetLength = 400.0;
   
+  if (t.straightM != null && t.radiusM != null) {
+    initialTargetLength = (2 * t.straightM) + (2 * Math.PI * (t.radiusM + curbOffset));
+  }
+
   // 1. Build the Editor UI Panel
   const editor = document.createElement('div');
   editor.id = 'track-editor-panel';
   editor.style.position = 'absolute';
   editor.style.bottom = '20px';
   editor.style.right = '20px';
-  editor.style.zIndex = '10000';
+  editor.style.zIndex = '10001';
   editor.style.backgroundColor = 'rgba(0, 50, 0, 0.85)';
   editor.style.color = '#ffffff';
   editor.style.padding = '15px';
@@ -922,15 +1049,27 @@ window.activateEditMode = function() {
     <b style="color: #4CAF50;">🛠️ LIVE TRACK EDITOR</b><br>
     <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
     
-    <label>Angle: <span id="edit-val-angle">${t.angle.toFixed(1)}</span>°</label>
-    <input type="range" id="edit-slider-angle" min="0" max="360" step="0.1" value="${t.angle}" style="width:100%;">
+    <label>Angle: <span id="edit-val-angle">${t.angle.toFixed(2)}</span>°</label>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+      <button onclick="adjustEditSlider('edit-slider-angle', -0.01)" style="width: 35px; height: 30px; background: #555; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">-</button>
+      <input type="range" id="edit-slider-angle" min="-360" max="360" step="0.01" value="${t.angle.toFixed(2)}" style="flex: 1;">
+      <button onclick="adjustEditSlider('edit-slider-angle', 0.01)" style="width: 35px; height: 30px; background: #555; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">+</button>
+    </div>
     
     <label>Straightaway: <span id="edit-val-straight">${t.straightM.toFixed(2)}</span>m</label>
-    <input type="range" id="edit-slider-straight" min="0" max="150" step="0.1" value="${t.straightM}" style="width:100%;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+      <button onclick="adjustEditSlider('edit-slider-straight', -0.01)" style="width: 35px; height: 30px; background: #555; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">-</button>
+      <input type="range" id="edit-slider-straight" min="0" max="150" step="0.01" value="${t.straightM.toFixed(2)}" style="flex: 1;">
+      <button onclick="adjustEditSlider('edit-slider-straight', 0.01)" style="width: 35px; height: 30px; background: #555; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">+</button>
+    </div>
     
-    <label>Target Length: <span id="edit-val-length">400.00</span>m</label>
-    <input type="range" id="edit-slider-length" min="100" max="1000" step="1" value="400" style="width:100%;">
-    
+    <label>Target Length: <span id="edit-val-length">${initialTargetLength.toFixed(2)}</span>m</label>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+      <button onclick="adjustEditSlider('edit-slider-length', -0.01)" style="width: 35px; height: 30px; background: #555; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">-</button>
+      <input type="range" id="edit-slider-length" min="100" max="1000" step="0.01" value="${initialTargetLength.toFixed(2)}" style="flex: 1;">
+      <button onclick="adjustEditSlider('edit-slider-length', 0.01)" style="width: 35px; height: 30px; background: #555; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">+</button>
+    </div>
+
     <hr style="border: 0; border-top: 1px dashed rgba(255,255,255,0.3); margin: 12px 0 8px 0;">
     <b style="color: #ffeb3b; font-size: 11px;">💾 RAW DB VALUES (GARMIN FORMAT)</b><br>
     <div style="background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px; margin-top: 5px; font-size: 11px; color: #a5d6a7; user-select: all;">
@@ -941,7 +1080,10 @@ window.activateEditMode = function() {
       InsideRadius: <span id="edit-raw-radius"></span>
     </div>
 
-    <button onclick="deactivateEditMode()" style="margin-top: 12px; width: 100%; padding: 5px; background: #ff3333; color: white; border: none; cursor: pointer; border-radius: 4px;">Close Editor</button>
+    <div style="display: flex; gap: 10px; margin-top: 12px;">
+      <button onclick="resetEditedTrack()" style="flex: 1; padding: 5px; background: #ff9800; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold;">🔄 Reset</button>
+      <button onclick="deactivateEditMode()" style="flex: 1; padding: 5px; background: #ff3333; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold;">✖ Close</button>
+    </div>
   `;
 
   L.DomEvent.disableClickPropagation(editor);
@@ -964,6 +1106,59 @@ window.activateEditMode = function() {
   redrawEditedTrack();
 };
 
+window.resetEditedTrack = function() {
+  if (!editModeActive || !window.currentViewedTrack || !db) return;
+
+  const targetId = window.currentViewedTrack.id;
+
+  try {
+    // 1. Fetch the pristine, original row directly from the SQLite database
+    const stmt = db.prepare(`
+      SELECT Id, CenterLat, CenterLong, Angle, StraightawayLength, InsideRadius 
+      FROM Tracks WHERE Id = :id LIMIT 1
+    `);
+    const row = stmt.getAsObject({ ':id': targetId });
+    stmt.free();
+
+    if (!row || !row.Id) {
+      console.warn("Could not find original track in database.");
+      return;
+    }
+
+    // 2. Parse the raw values back into Garmin degrees and meters
+    const lat = (row.CenterLat != null) ? toDegreesFromGarmin(row.CenterLat) : null;
+    const lon = (row.CenterLong != null) ? toDegreesFromGarmin(row.CenterLong) : null;
+    let angle = (row.Angle != null) ? centidegToDeg(row.Angle) : 0;
+    let straightM = (row.StraightawayLength != null) ? metersFromStored(row.StraightawayLength) : null;
+    let radiusM = (row.InsideRadius != null) ? metersFromStored(row.InsideRadius) : null;
+
+    // Apply the exact same fallback math used during standard loading
+    if (straightM === null || straightM === 0) { straightM = 84.39; }
+    if (radiusM === null || radiusM === 0) {
+      radiusM = ((400.0 - (2 * straightM)) / (2 * Math.PI)) - 0.3;
+      if (radiusM < 5) radiusM = 36.5; 
+    }
+    const lengthM = computeTrackLength(straightM, radiusM);
+
+    // 3. Move the physical Leaflet marker back to the original coordinates
+    if (editMarker) {
+      editMarker.setLatLng([lat, lon]);
+    }
+
+    // 4. Reset all the HTML slider bars to match the database values
+    document.getElementById('edit-slider-angle').value = angle;
+    document.getElementById('edit-slider-straight').value = straightM;
+    document.getElementById('edit-slider-length').value = lengthM;
+
+    // 5. Trigger the standard redraw function so the UI text, raw values, and polygon all update automatically!
+    redrawEditedTrack();
+    
+    console.log(`🔄 Track ID ${targetId} successfully reset to database state.`);
+  } catch (error) {
+    console.error("❌ Failed to reset track:", error);
+  }
+};
+
 window.redrawEditedTrack = function() {
   if (!editModeActive) return;
 
@@ -974,7 +1169,7 @@ window.redrawEditedTrack = function() {
   const targetLength = parseFloat(document.getElementById('edit-slider-length').value);
 
   // Update UI Labels
-  document.getElementById('edit-val-angle').innerText = newAngle.toFixed(1);
+  document.getElementById('edit-val-angle').innerText = newAngle.toFixed(2);
   document.getElementById('edit-val-straight').innerText = newStraight.toFixed(2);
   document.getElementById('edit-val-length').innerText = targetLength.toFixed(2);
 
@@ -1037,9 +1232,16 @@ window.deactivateEditMode = function() {
   const panel = document.getElementById('track-editor-panel');
   if (panel) panel.remove();
   
-  // Redraw the standard red track based on whatever the final visual state was
-  trackLayer.clearLayers();
-  drawTrack(window.currentViewedTrack);
+  // 1. Sync the edited track back into the global tracking array
+  if (window.currentViewedTrack) {
+    const trackIndex = allTracks.findIndex(tr => tr.id === window.currentViewedTrack.id);
+    if (trackIndex !== -1) {
+      allTracks[trackIndex] = window.currentViewedTrack;
+    }
+  }
+
+  // 2. Force the map engine to recalculate and draw ALL tracks in the current view
+  renderByZoom();
 };
 
 // Safety catch: Close editor if the user manually closes the telemetry card
